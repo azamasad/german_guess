@@ -1,5 +1,17 @@
-venv/
+# Python
 __pycache__/
 *.pyc
-.env
+*.pyo
+
+# virtual environments
+venv/
+env/
+
+# database
 *.db
+
+# environment variables
+.env
+
+# mac junk
+.DS_Store

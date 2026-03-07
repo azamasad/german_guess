@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+
+body {
+background-color: #f5f7fa;
+}
+
+.card {
+border-radius: 12px;
+border: none;
+box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+.btn {
+border-radius: 8px;
+}
+
+</style>
+    <title>German Guess</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="container mt-5">
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+
+<img src="/static/logo_german_guess.png" style="height:80px;">
+</div>
+
+<!-- Progress -->
+<div class="card p-3 mb-4">
+
+<div class="d-flex justify-content-between align-items-center flex-wrap">
+
+<div>
+<strong>Score:</strong> {{ request.session.get("score",0) }}
+</div>
+
+<div>
+<strong>Correct rate:</strong> {{ accuracy if accuracy else 0 }}%
+</div>
+
+<div>
+<strong>Questions answered:</strong> {{ answered if answered else 0 }}
+</div>
+
+<button class="btn btn-outline-danger btn-sm"
+onclick="if(confirm('Are you sure you want to reset progress of this session?')){window.location='/reset';}">
+↻ Start Again
+</button>
+
+</div>
+
+</div>
+
+
+<!-- Game Mode -->
+<h5>Game Mode</h5>
+
+<div class="btn-group mb-3">
+<button class="btn btn-primary">Fill in the Blank</button>
+</div>
+
+
+
+<!-- Presets -->
+<h5>Presets</h5>
+
+<div class="mb-3">
+
+<button class="btn btn-secondary preset" data-set="all">All</button>
+<button class="btn btn-secondary preset" data-set="beginner">Beginner</button>
+<button class="btn btn-secondary preset" data-set="intermediate">Intermediate</button>
+<button class="btn btn-secondary preset" data-set="advanced">Advanced</button>
+
+</div>
+
+
+
+<!-- Choose Level -->
+<h5>Choose Level</h5>
+
+<div id="level-buttons" class="btn-group mb-4 flex-wrap">
+
+<button class="btn btn-success level-btn" data-level="A1">A1</button>
+<button class="btn btn-success level-btn" data-level="A2">A2</button>
+<button class="btn btn-success level-btn" data-level="B1">B1</button>
+<button class="btn btn-success level-btn" data-level="B2">B2</button>
+<button class="btn btn-success level-btn" data-level="C1">C1</button>
+<button class="btn btn-success level-btn" data-level="C2">C2</button>
+
+</div>
+
+
+
+<!-- Question -->
+<div class="card p-4">
+
+<h4>{{ question.sentence }}</h4>
+
+<form method="post" action="/play">
+
+<input type="hidden" name="question_id" value="{{ question.id }}">
+
+<div class="row">
+
+{% for key, value in options.items() %}
+
+<div class="col-md-6 mb-3">
+
+{% if result %}
+
+<button class="btn w-100
+{% if value == result.correct_answer %}
+btn-success
+{% elif value == result.selected_answer %}
+btn-danger
+{% else %}
+btn-outline-secondary
+{% endif %}
+" disabled>
+
+{{ key }}. {{ value }}
+
+</button>
+
+{% else %}
+
+<button type="submit"
+name="selected_option"
+value="{{ value }}"
+class="btn btn-outline-primary w-100">
+
+{{ key }}. {{ value }}
+
+</button>
+
+{% endif %}
+
+</div>
+
+{% endfor %}
+
+</div>
+
+</form>
+
+
+{% if result %}
+
+<div class="alert mt-4 {% if result.correct %}alert-success{% else %}alert-danger{% endif %}">
+
+<strong>
+{% if result.correct %}Correct!{% else %}Wrong!{% endif %}
+</strong>
+
+<br>
+
+Correct Answer: {{ result.correct_answer }}
+
+<br>
+
+Explanation: {{ result.explanation }}
+
+</div>
+
+<a href="/play" class="btn btn-primary mt-2">
+Next Question
+</a>
+
+{% endif %}
+
+</div>
+
+
+
+<script>
+
+let selectedLevels = ["A1","A2","B1","B2","C1","C2"];
+
+
+function updateLevelButtons(){
+
+document.querySelectorAll(".level-btn").forEach(btn => {
+
+const level = btn.dataset.level;
+
+if(selectedLevels.includes(level)){
+btn.classList.add("btn-success");
+btn.classList.remove("btn-outline-secondary");
+}
+else{
+btn.classList.remove("btn-success");
+btn.classList.add("btn-outline-secondary");
+}
+
+});
+
+}
+
+
+function updateGameURL(){
+
+let levelString = selectedLevels.join(",");
+
+window.location.href = "/play?levels=" + levelString;
+
+}
+
+
+document.querySelectorAll(".level-btn").forEach(btn => {
+
+btn.addEventListener("click", function(){
+
+const level = this.dataset.level;
+
+if(selectedLevels.includes(level)){
+selectedLevels = selectedLevels.filter(l => l !== level);
+}
+else{
+selectedLevels.push(level);
+}
+
+updateLevelButtons();
+
+localStorage.setItem("levels", JSON.stringify(selectedLevels));
+
+updateGameURL();
+
+});
+
+});
+
+
+document.querySelectorAll(".preset").forEach(btn => {
+
+btn.addEventListener("click", function(){
+
+const preset = this.dataset.set;
+
+if(preset === "all") selectedLevels = ["A1","A2","B1","B2","C1","C2"];
+if(preset === "beginner") selectedLevels = ["A1","A2"];
+if(preset === "intermediate") selectedLevels = ["B1","B2"];
+if(preset === "advanced") selectedLevels = ["C1","C2"];
+
+updateLevelButtons();
+
+localStorage.setItem("levels", JSON.stringify(selectedLevels));
+
+updateGameURL();
+
+});
+
+});
+
+
+const savedLevels = localStorage.getItem("levels");
+
+if(savedLevels){
+selectedLevels = JSON.parse(savedLevels);
+updateLevelButtons();
+}
+
+</script>
+
+</body>
+</html>
