@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Request, Body, Form
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from pathlib import Path
 
 from app.logger import setup_logger
 from app.database import engine, SessionLocal
@@ -12,10 +13,12 @@ from app.crud import create_question, get_random_question
 
 app = FastAPI()
 
-# static files (logo etc.)
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+BASE_DIR = Path(__file__).resolve().parent
 
-templates = Jinja2Templates(directory="app/templates")
+# static files (logo etc.)
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 logger = setup_logger()
 
@@ -23,7 +26,6 @@ app.add_middleware(
     SessionMiddleware,
     secret_key="super-secret-key-change-later"
 )
-
 
 # -----------------------------
 # Startup
@@ -58,18 +60,11 @@ def startup_event():
 
 
 # -----------------------------
-# Homepage
+# Homepage → redirect to UI
 # -----------------------------
 @app.get("/")
-def home(request: Request):
-
-    if "score" not in request.session:
-        request.session["score"] = 0
-
-    return {
-        "message": "German Guess is running",
-        "score": request.session["score"]
-    }
+def home():
+    return RedirectResponse(url="/play")
 
 
 # -----------------------------
@@ -168,17 +163,13 @@ def submit_answer(
 
     correct = selected_option == question.correct_answer
 
-    # initialize session counters
     if "score" not in request.session:
         request.session["score"] = 0
-
     if "questions_answered" not in request.session:
         request.session["questions_answered"] = 0
-
     if "correct_answers" not in request.session:
         request.session["correct_answers"] = 0
 
-    # update counters
     request.session["questions_answered"] += 1
 
     if correct:
@@ -223,9 +214,6 @@ def submit_answer(
 # -----------------------------
 # Reset Progress
 # -----------------------------
-from fastapi.responses import RedirectResponse
-
-
 @app.get("/reset")
 def reset_score(request: Request):
 
