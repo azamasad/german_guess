@@ -1,3 +1,19 @@
+nothing to commit, working tree clean
+asad@Asads-MacBook-Pro german_guess % touch .gitignore
+asad@Asads-MacBook-Pro german_guess % touch .gitignore
+asad@Asads-MacBook-Pro german_guess % venv/
+__pycache__/
+*.pyc
+.env
+*.db
+.DS_Store
+zsh: no such file or directory: venv/
+zsh: no such file or directory: __pycache__/
+zsh: no matches found: *.pyc
+asad@Asads-MacBook-Pro german_guess % 
+
+
+
 # Python
 __pycache__/
 *.pyc
