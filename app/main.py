@@ -6,7 +6,6 @@ from starlette.middleware.sessions import SessionMiddleware
 from pathlib import Path
 
 from app.database import engine, SessionLocal, Base
-from app import models
 from app.models import Question
 from app.crud import create_question, get_random_question
 
@@ -14,7 +13,7 @@ app = FastAPI()
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Static files
+# Static
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 # Templates
@@ -27,7 +26,7 @@ app.add_middleware(
 )
 
 # -----------------------------
-# Startup (DB init + minimal seed)
+# Startup
 # -----------------------------
 @app.on_event("startup")
 def startup_event():
@@ -35,6 +34,7 @@ def startup_event():
 
     db = SessionLocal()
 
+    # seed 1 question if empty
     if db.query(Question).count() == 0:
         create_question(db, {
             "sentence": "Die Aufgabe war anspruchsvoll.",
@@ -73,6 +73,15 @@ def fetch_question(levels):
     return question
 
 
+def format_options(question):
+    return [
+        ("A", question.option_a),
+        ("B", question.option_b),
+        ("C", question.option_c),
+        ("D", question.option_d),
+    ]
+
+
 # -----------------------------
 # Routes
 # -----------------------------
@@ -95,12 +104,7 @@ def play_v2(request: Request, levels: str = None):
         {
             "request": request,
             "question": question,
-            "options": [
-                ("A", question.option_a),
-                ("B", question.option_b),
-                ("C", question.option_c),
-                ("D", question.option_d),
-            ],
+            "options": format_options(question),  # ✅ FIXED
             "result": None,
             "accuracy": accuracy,
             "answered": answered,
@@ -152,12 +156,7 @@ def submit_v2(
         {
             "request": request,
             "question": question,
-            "options": [
-                ("A", question.option_a),
-                ("B", question.option_b),
-                ("C", question.option_c),
-                ("D", question.option_d),
-            ],
+            "options": format_options(question),  # ✅ FIXED
             "result": result,
             "accuracy": accuracy,
             "answered": answered
