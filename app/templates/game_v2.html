@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GermanGuess</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 12px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 520px;
+            margin: auto;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #1f3a5f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            margin-right: 10px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .stat {
+            flex: 1;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .score { background: #f6eddc; }
+        .accuracy { background: #e7f6ec; }
+        .answered { background: #eaf3fb; }
+
+        .chip {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            margin: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            background: #ddd;
+            color: #555;
+        }
+
+        .chip.active {
+            background: #0b8f2f;
+            color: white;
+        }
+
+        .section {
+            margin-bottom: 12px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        }
+
+        .question {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .option {
+            width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .option.correct {
+            border-color: green;
+            background: #e6f7ec;
+        }
+
+        .option.wrong {
+            border-color: red;
+            background: #fdeaea;
+        }
+
+        .option.disabled {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .result-box {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+        }
+
+        .result-correct { background: #e6f7ec; }
+        .result-wrong { background: #fdeaea; }
+
+        .next-btn {
+            margin-top: 12px;
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            background: #1f3a5f;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+        <div class="logo">📘</div>
+        <div>
+            <strong>LinguaQuiz</strong><br>
+            <small>Language Learning</small>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat score">
+            Score<br>{{ request.session.get("score", 0) }}
+        </div>
+        <div class="stat accuracy">
+            Accuracy<br>{{ accuracy }}%
+        </div>
+        <div class="stat answered">
+            Answered<br>{{ answered }}
+        </div>
+    </div>
+
+    <!-- CEFR -->
+    <div class="section">
+        <strong>CEFR LEVEL</strong><br>
+        <span class="chip" id="chip-A1" onclick="toggleLevel('A1')">A1</span>
+        <span class="chip" id="chip-A2" onclick="toggleLevel('A2')">A2</span>
+        <span class="chip" id="chip-B1" onclick="toggleLevel('B1')">B1</span>
+        <span class="chip" id="chip-B2" onclick="toggleLevel('B2')">B2</span>
+        <span class="chip" id="chip-C1" onclick="toggleLevel('C1')">C1</span>
+        <span class="chip" id="chip-C2" onclick="toggleLevel('C2')">C2</span>
+    </div>
+
+    <!-- DIFFICULTY -->
+    <div class="section">
+        <strong>DIFFICULTY</strong><br>
+        <span class="chip" id="diff-beginner" onclick="setDifficulty('beginner')">Beginner</span>
+        <span class="chip" id="diff-intermediate" onclick="setDifficulty('intermediate')">Intermediate</span>
+        <span class="chip" id="diff-advanced" onclick="setDifficulty('advanced')">Advanced</span>
+    </div>
+
+    <div class="card">
+
+        <div class="question">
+            {{ question.sentence }}
+        </div>
+
+        <form method="post" action="/play-v2" id="quizForm">
+            <input type="hidden" name="question_id" value="{{ question.id }}">
+            <input type="hidden" name="selected_option" id="selectedOption">
+
+            {% for key, value in options.items() %}
+                <div class="option
+                    {% if result %}
+                        {% if value == result.correct_answer %}correct
+                        {% elif value == result.selected_answer %}wrong
+                        {% endif %}
+                        disabled
+                    {% endif %}
+                "
+                onclick="selectOption('{{ value }}')">
+
+                    <strong>{{ key }}</strong> {{ value }}
+                </div>
+            {% endfor %}
+        </form>
+
+        {% if result %}
+        <div class="result-box {% if result.correct %}result-correct{% else %}result-wrong{% endif %}">
+            <strong>
+                {% if result.correct %}CORRECT{% else %}INCORRECT{% endif %}
+            </strong><br><br>
+            {{ result.explanation }}
+        </div>
+
+        <button class="next-btn" onclick="applyFilters()">
+            Next Question →
+        </button>
+        {% endif %}
+
+    </div>
+
+</div>
+
+<script>
+function selectOption(value) {
+    document.getElementById("selectedOption").value = value;
+    document.getElementById("quizForm").submit();
+}
+
+// MULTI SELECT
+function toggleLevel(level) {
+    let selected = JSON.parse(localStorage.getItem("levels")) || [];
+
+    if (selected.includes(level)) {
+        selected = selected.filter(l => l !== level);
+    } else {
+        selected.push(level);
+    }
+
+    localStorage.setItem("levels", JSON.stringify(selected));
+    updateUI(selected);
+    applyFilters();
+}
+
+// DIFFICULTY
+function setDifficulty(type) {
+    let map = {
+        beginner: ["A1","A2"],
+        intermediate: ["B1","B2"],
+        advanced: ["C1","C2"]
+    };
+
+    let selected = map[type];
+
+    localStorage.setItem("levels", JSON.stringify(selected));
+    updateUI(selected);
+    updateDifficultyUI(type);
+    applyFilters();
+}
+
+function applyFilters() {
+    let levels = JSON.parse(localStorage.getItem("levels")) || [];
+    let query = levels.join(",");
+    window.location.href = "/play-v2?levels=" + query;
+}
+
+// UI SYNC
+function updateUI(selected) {
+    ["A1","A2","B1","B2","C1","C2"].forEach(level => {
+        let el = document.getElementById("chip-" + level);
+        if (!el) return;
+
+        if (selected.includes(level)) {
+            el.classList.add("active");
+        } else {
+            el.classList.remove("active");
+        }
+    });
+
+    if (selected.length === 2) {
+        if (selected.includes("A1") && selected.includes("A2")) updateDifficultyUI("beginner");
+        else if (selected.includes("B1") && selected.includes("B2")) updateDifficultyUI("intermediate");
+        else if (selected.includes("C1") && selected.includes("C2")) updateDifficultyUI("advanced");
+    }
+}
+
+function updateDifficultyUI(active) {
+    ["beginner","intermediate","advanced"].forEach(type => {
+        let el = document.getElementById("diff-" + type);
+        if (!el) return;
+
+        if (type === active) {
+            el.classList.add("active");
+        } else {
+            el.classList.remove("active");
+        }
+    });
+}
+
+window.onload = function() {
+    let selected = JSON.parse(localStorage.getItem("levels")) || [];
+    updateUI(selected);
+};
+</script>
+
+</body>
+</html>
