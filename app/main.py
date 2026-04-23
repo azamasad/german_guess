@@ -10,6 +10,13 @@ from app import models
 from app.models import Question
 from app.crud import create_question, get_random_question
 
+from app.database import engine, Base
+from app import models
+
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
 
 BASE_DIR = Path(__file__).resolve().parent
