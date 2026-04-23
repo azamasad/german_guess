@@ -188,7 +188,7 @@
             <input type="hidden" name="question_id" value="{{ question.id }}">
             <input type="hidden" name="selected_option" id="selectedOption">
 
-            {% for key, value in options.items() %}
+            {% for key, value in options %}
                 <div class="option
                     {% if result %}
                         {% if value == result.correct_answer %}correct

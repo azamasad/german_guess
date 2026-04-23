@@ -35,7 +35,6 @@ def startup_event():
 
     db = SessionLocal()
 
-    # seed minimal data if empty
     if db.query(Question).count() == 0:
         create_question(db, {
             "sentence": "Die Aufgabe war anspruchsvoll.",
@@ -96,12 +95,12 @@ def play_v2(request: Request, levels: str = None):
         {
             "request": request,
             "question": question,
-            "options": {
-                "A": question.option_a,
-                "B": question.option_b,
-                "C": question.option_c,
-                "D": question.option_d,
-            },
+            "options": [
+                ("A", question.option_a),
+                ("B", question.option_b),
+                ("C", question.option_c),
+                ("D", question.option_d),
+            ],
             "result": None,
             "accuracy": accuracy,
             "answered": answered,
@@ -153,12 +152,12 @@ def submit_v2(
         {
             "request": request,
             "question": question,
-            "options": {
-                "A": question.option_a,
-                "B": question.option_b,
-                "C": question.option_c,
-                "D": question.option_d,
-            },
+            "options": [
+                ("A", question.option_a),
+                ("B", question.option_b),
+                ("C", question.option_c),
+                ("D", question.option_d),
+            ],
             "result": result,
             "accuracy": accuracy,
             "answered": answered
