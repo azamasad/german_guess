@@ -5,17 +5,10 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from pathlib import Path
 
-from app.database import engine, SessionLocal
+from app.database import engine, SessionLocal, Base
 from app import models
 from app.models import Question
 from app.crud import create_question, get_random_question
-
-from app.database import engine, Base
-from app import models
-
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -34,14 +27,15 @@ app.add_middleware(
 )
 
 # -----------------------------
-# Startup
+# Startup (DB init + minimal seed)
 # -----------------------------
 @app.on_event("startup")
 def startup_event():
-    models.Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
 
+    # seed minimal data if empty
     if db.query(Question).count() == 0:
         create_question(db, {
             "sentence": "Die Aufgabe war anspruchsvoll.",
