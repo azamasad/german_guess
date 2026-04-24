@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -7,7 +7,7 @@ from pathlib import Path
 
 from app.database import engine, SessionLocal, Base
 from app.models import Question
-from app.crud import create_question, get_random_question
+from app.crud import create_question
 
 app = FastAPI()
 
@@ -46,9 +46,8 @@ def startup_event():
         })
     db.close()
 
-
 # -----------------------------
-# TEST ROUTES (ISOLATION)
+# TEST ROUTES (TEMPLATE LOAD)
 # -----------------------------
 @app.get("/")
 def home():
@@ -56,8 +55,11 @@ def home():
 
 
 @app.get("/play-v2", response_class=HTMLResponse)
-def play_v2():
-    return HTMLResponse("OK")  # 🔥 ONLY THIS (test)
+def play_v2(request: Request):
+    return templates.TemplateResponse(
+        "game_v2.html",
+        {"request": request}
+    )
 
 
 @app.get("/reset")
