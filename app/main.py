@@ -16,10 +16,10 @@ BASE_DIR = Path(__file__).resolve().parent
 # Static
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-# Templates (FIXED + CACHE DISABLED)
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-templates.env.cache = {}          # 🔥 CRITICAL FIX
-templates.env.auto_reload = True  # 🔥 ensures fresh load
+# Templates (clean, no cache hacks)
+templates = Jinja2Templates(
+    directory=str(BASE_DIR / "templates")
+)
 
 # Sessions
 app.add_middleware(
@@ -49,7 +49,7 @@ def startup_event():
     db.close()
 
 # -----------------------------
-# TEST ROUTES
+# Routes (template test)
 # -----------------------------
 @app.get("/")
 def home():
@@ -58,10 +58,8 @@ def home():
 
 @app.get("/play-v2", response_class=HTMLResponse)
 def play_v2(request: Request):
-    return templates.TemplateResponse(
-        "game_v2.html",
-        {"request": request}
-    )
+    context = {"request": request}
+    return templates.TemplateResponse("game_v2.html", context)
 
 
 @app.get("/reset")
