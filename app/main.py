@@ -16,8 +16,10 @@ BASE_DIR = Path(__file__).resolve().parent
 # Static
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-# Templates
-templates = Jinja2Templates(directory="app/templates")
+# Templates (FIXED + CACHE DISABLED)
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+templates.env.cache = {}          # 🔥 CRITICAL FIX
+templates.env.auto_reload = True  # 🔥 ensures fresh load
 
 # Sessions
 app.add_middleware(
@@ -47,7 +49,7 @@ def startup_event():
     db.close()
 
 # -----------------------------
-# TEST ROUTES (TEMPLATE LOAD)
+# TEST ROUTES
 # -----------------------------
 @app.get("/")
 def home():

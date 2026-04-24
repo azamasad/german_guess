@@ -1,48 +1,6 @@
 <!DOCTYPE html>
 <html>
-<head>
-    <title>GermanGuess</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-
 <body>
-
-<div>
-
-    <h3>{{ question.sentence }}</h3>
-
-    <form method="post" action="/play-v2" id="quizForm">
-        <input type="hidden" name="question_id" value="{{ question.id }}">
-        <input type="hidden" name="selected_option" id="selectedOption">
-
-        {% for key, value in options %}
-            <div
-                onclick="selectOption({{ value | tojson }})"
-                style="border:1px solid #ccc; padding:10px; margin:5px; cursor:pointer;"
-            >
-                <strong>{{ key }}</strong> {{ value | string }}
-            </div>
-        {% endfor %}
-    </form>
-
-    {% if result %}
-        <div>
-            <strong>
-                {% if result.correct %}CORRECT{% else %}INCORRECT{% endif %}
-            </strong>
-            <br>
-            {{ result.explanation }}
-        </div>
-    {% endif %}
-
-</div>
-
-<script>
-function selectOption(value) {
-    document.getElementById("selectedOption").value = value;
-    document.getElementById("quizForm").submit();
-}
-</script>
-
+<h1>Template OK</h1>
 </body>
 </html>
