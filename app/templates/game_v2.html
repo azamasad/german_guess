@@ -197,9 +197,9 @@
                         disabled
                     {% endif %}
                 "
-                onclick="selectOption('{{ value }}')">
+                onclick="selectOption('{{ value | string }}')"
 
-                    <strong>{{ key }}</strong> {{ value }}
+                    <strong>{{ key }}</strong> {{ value | string }}
                 </div>
             {% endfor %}
         </form>
