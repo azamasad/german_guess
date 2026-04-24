@@ -34,7 +34,6 @@ def startup_event():
 
     db = SessionLocal()
 
-    # seed 1 question if empty
     if db.query(Question).count() == 0:
         create_question(db, {
             "sentence": "Die Aufgabe war anspruchsvoll.",
@@ -73,12 +72,13 @@ def fetch_question(levels):
     return question
 
 
+# 🔥 FORCE SAFE STRING OUTPUT (this avoids your crash)
 def format_options(question):
     return [
-        ("A", question.option_a),
-        ("B", question.option_b),
-        ("C", question.option_c),
-        ("D", question.option_d),
+        ("A", str(question.option_a)),
+        ("B", str(question.option_b)),
+        ("C", str(question.option_c)),
+        ("D", str(question.option_d)),
     ]
 
 
@@ -104,7 +104,7 @@ def play_v2(request: Request, levels: str = None):
         {
             "request": request,
             "question": question,
-            "options": format_options(question),  # ✅ FIXED
+            "options": format_options(question),
             "result": None,
             "accuracy": accuracy,
             "answered": answered,
@@ -128,7 +128,8 @@ def submit_v2(
     if not question:
         return HTMLResponse("Question not found")
 
-    correct = selected_option == question.correct_answer
+    # force comparison safety
+    correct = str(selected_option) == str(question.correct_answer)
 
     session = request.session
     session.setdefault("score", 0)
@@ -145,8 +146,8 @@ def submit_v2(
 
     result = {
         "correct": correct,
-        "correct_answer": question.correct_answer,
-        "selected_answer": selected_option,
+        "correct_answer": str(question.correct_answer),
+        "selected_answer": str(selected_option),
         "explanation": question.explanation,
         "score": session["score"]
     }
@@ -156,7 +157,7 @@ def submit_v2(
         {
             "request": request,
             "question": question,
-            "options": format_options(question),  # ✅ FIXED
+            "options": format_options(question),
             "result": result,
             "accuracy": accuracy,
             "answered": answered
