@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -46,6 +46,19 @@ def startup_event():
         })
     db.close()
 
+
+
+# -----------------------------
+# Helpers
+# -----------------------------
+def get_options(question):
+    return [
+        ("A", str(question.option_a)),
+        ("B", str(question.option_b)),
+        ("C", str(question.option_c)),
+        ("D", str(question.option_d)),
+    ]
+
 # -----------------------------
 # Routes
 # -----------------------------
@@ -57,7 +70,6 @@ def home():
 @app.get("/play-v2", response_class=HTMLResponse)
 def play_v2(request: Request):
     db = SessionLocal()
-
     try:
         question = db.query(Question).first()
     finally:
@@ -66,19 +78,43 @@ def play_v2(request: Request):
     if not question:
         return HTMLResponse("No questions available")
 
-    options = [
-        ("A", str(question.option_a)),
-        ("B", str(question.option_b)),
-        ("C", str(question.option_c)),
-        ("D", str(question.option_d)),
-    ]
+    return templates.TemplateResponse(
+        "game_v2.html",
+        {
+            "request": request,
+            "question": question,
+            "options": get_options(question),
+            "result": None
+        }
+    )
+
+
+@app.post("/play-v2", response_class=HTMLResponse)
+def submit_v2(
+    request: Request,
+    question_id: int = Form(...),
+    selected_option: str = Form(...)
+):
+    db = SessionLocal()
+    try:
+        question = db.query(Question).filter(Question.id == question_id).first()
+    finally:
+        db.close()
+
+    if not question:
+        return HTMLResponse("Question not found")
+
+    correct = str(selected_option) == str(question.correct_answer)
+
+    result_text = "Correct ✅" if correct else f"Wrong ❌ (Correct: {question.correct_answer})"
 
     return templates.TemplateResponse(
         "game_v2.html",
         {
             "request": request,
             "question": question,
-            "options": options
+            "options": get_options(question),
+            "result": result_text
         }
     )
 
@@ -87,3 +123,8 @@ def play_v2(request: Request):
 def reset(request: Request):
     request.session.clear()
     return RedirectResponse(url="/play-v2")
+
+from sqlalchemy import text
+with engine.connect() as conn:
+    result = conn.execute(text("SELECT version();"))
+    print("DB VERSION:", result.fetchone())
