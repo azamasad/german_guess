@@ -1,29 +1,68 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <title>GermanGuess</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            font-family: Arial;
+            max-width: 600px;
+            margin: 40px auto;
+        }
+
+        .option {
+            border: 1px solid #ccc;
+            padding: 12px;
+            margin: 8px 0;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        .option:hover {
+            background: #f0f0f0;
+        }
+
+        .result {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
 <body>
 
 <h2>Score: {{ score }}</h2>
 
 <h3>{{ question.sentence }}</h3>
 
-<form method="post" action="/play-v2">
+<form method="post" action="/play-v2" id="quizForm">
     <input type="hidden" name="question_id" value="{{ question.id }}">
+    <input type="hidden" name="selected_option" id="selectedOption">
 
     {% for key, value in options %}
-        <div style="margin:10px 0;">
-            <button type="submit" name="selected_option" value="{{ value }}">
-                {{ key }} - {{ value }}
-            </button>
+        <div class="option"
+             onclick="selectOption({{ value | tojson }})">
+            <strong>{{ key }}</strong> - {{ value }}
         </div>
     {% endfor %}
 </form>
 
 {% if result %}
-    <p><strong>{{ result }}</strong></p>
+    <div class="result">
+        {{ result }}
+    </div>
 {% endif %}
 
 <br>
-<a href="/reset">Reset Score</a>
+<a href="/reset">Reset</a>
+
+<script>
+function selectOption(value) {
+    document.getElementById("selectedOption").value = value;
+    document.getElementById("quizForm").submit();
+}
+</script>
 
 </body>
 </html>
