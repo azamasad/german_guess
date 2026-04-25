@@ -15,7 +15,6 @@ app = FastAPI()
 BASE_DIR = Path(__file__).resolve().parent
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
-
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
@@ -44,19 +43,27 @@ def startup():
 # -----------------------------
 # Helpers
 # -----------------------------
-def get_random_question():
+def get_random_question(levels=None):
     db = SessionLocal()
     try:
-        questions = db.query(Question).all()
-        return random.choice(questions)
+        query = db.query(Question)
+
+        if levels:
+            level_list = levels.split(",")
+            query = query.filter(Question.level.in_(level_list))
+
+        questions = query.all()
+        return random.choice(questions) if questions else None
     finally:
         db.close()
+
 
 def get_stats(session):
     answered = session.get("answered", 0)
     correct = session.get("correct", 0)
     accuracy = int((correct / answered) * 100) if answered else 0
     return answered, correct, accuracy
+
 
 # -----------------------------
 # Routes
@@ -67,10 +74,14 @@ def home():
 
 
 @app.get("/play-v2", response_class=HTMLResponse)
-def play(request: Request):
-    q = get_random_question()
+def play(request: Request, levels: str = None):
 
-    answered, correct, accuracy = get_stats(request.session)
+    q = get_random_question(levels)
+
+    if not q:
+        return HTMLResponse("No questions available for selected level")
+
+    answered, score, accuracy = get_stats(request.session)
 
     return templates.TemplateResponse("game_v2.html", {
         "request": request,
@@ -83,16 +94,19 @@ def play(request: Request):
         ],
         "result": None,
         "answered": answered,
-        "score": correct,
-        "accuracy": accuracy
+        "score": score,
+        "accuracy": accuracy,
+        "levels": levels or ""
     })
 
 
 @app.post("/play-v2", response_class=HTMLResponse)
-def submit(request: Request,
-           question_id: int = Form(...),
-           selected_option: str = Form(...)):
-
+def submit(
+    request: Request,
+    question_id: int = Form(...),
+    selected_option: str = Form(...),
+    levels: str = Form(None)
+):
     db = SessionLocal()
     try:
         q = db.query(Question).filter(Question.id == question_id).first()
@@ -109,7 +123,7 @@ def submit(request: Request,
 
     answered, score, accuracy = get_stats(session)
 
-    next_q = get_random_question()
+    next_q = get_random_question(levels)
 
     return templates.TemplateResponse("game_v2.html", {
         "request": request,
@@ -122,13 +136,12 @@ def submit(request: Request,
         ],
         "result": {
             "correct": correct,
-            "explanation": q.explanation,
-            "correct_answer": q.correct_answer,
-            "selected": selected_option
+            "explanation": q.explanation
         },
         "answered": answered,
         "score": score,
-        "accuracy": accuracy
+        "accuracy": accuracy,
+        "levels": levels or ""
     })
 
 

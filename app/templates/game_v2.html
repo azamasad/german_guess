@@ -6,14 +6,28 @@
 <style>
 body {
     font-family: system-ui;
-    background: #f5f6f8;
+    background: #f5f7fa;
     margin: 0;
     padding: 16px;
 }
 
 .container {
-    max-width: 600px;
+    max-width: 520px;
     margin: auto;
+}
+
+.pill {
+    display: inline-block;
+    padding: 8px 14px;
+    margin: 4px;
+    border-radius: 20px;
+    background: #ddd;
+    cursor: pointer;
+}
+
+.pill.active {
+    background: green;
+    color: white;
 }
 
 .card {
@@ -23,22 +37,6 @@ body {
     margin-top: 16px;
 }
 
-.stats {
-    display: flex;
-    gap: 10px;
-}
-
-.stat {
-    flex: 1;
-    padding: 12px;
-    border-radius: 12px;
-    text-align: center;
-}
-
-.score { background: #f3e8d3; }
-.acc { background: #dff3e7; }
-.ans { background: #e3edf7; }
-
 .option {
     border: 2px solid #ddd;
     padding: 14px;
@@ -47,23 +45,27 @@ body {
     cursor: pointer;
 }
 
-.correct {
-    border-color: green;
-    background: #e7f6ec;
+.option:hover {
+    background: #f0f0f0;
 }
 
-.wrong {
-    border-color: red;
+.feedback {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 10px;
 }
+
+.correct { background: #e6f6ee; color: green; }
+.wrong { background: #fdecec; color: red; }
 
 .btn {
-    width: 100%;
-    padding: 16px;
+    margin-top: 16px;
+    padding: 14px;
     background: #24335c;
     color: white;
-    border-radius: 12px;
     text-align: center;
-    margin-top: 20px;
+    border-radius: 10px;
+    cursor: pointer;
 }
 </style>
 </head>
@@ -74,10 +76,21 @@ body {
 
 <h2>LinguaQuiz</h2>
 
-<div class="stats">
-    <div class="stat score">Score<br>{{ score }}</div>
-    <div class="stat acc">Accuracy<br>{{ accuracy }}%</div>
-    <div class="stat ans">Answered<br>{{ answered }}</div>
+<!-- CEFR -->
+<div>
+    <div class="pill" onclick="toggleLevel('A1')">A1</div>
+    <div class="pill" onclick="toggleLevel('A2')">A2</div>
+    <div class="pill" onclick="toggleLevel('B1')">B1</div>
+    <div class="pill" onclick="toggleLevel('B2')">B2</div>
+    <div class="pill" onclick="toggleLevel('C1')">C1</div>
+    <div class="pill" onclick="toggleLevel('C2')">C2</div>
+</div>
+
+<!-- Difficulty -->
+<div>
+    <div class="pill" onclick="applyDifficulty('beginner')">Beginner</div>
+    <div class="pill" onclick="applyDifficulty('intermediate')">Intermediate</div>
+    <div class="pill" onclick="applyDifficulty('advanced')">Advanced</div>
 </div>
 
 <div class="card">
@@ -85,32 +98,23 @@ body {
 <h3>{{ question.sentence }}</h3>
 
 <form method="post" action="/play-v2" id="form">
-<input type="hidden" name="question_id" value="{{ question.id }}">
-<input type="hidden" name="selected_option" id="selected">
+    <input type="hidden" name="question_id" value="{{ question.id }}">
+    <input type="hidden" name="selected_option" id="selected">
+    <input type="hidden" name="levels" id="levelsInput" value="{{ levels }}">
+</form>
 
 {% for key, value in options %}
-<div class="option"
-     onclick="selectOption({{ value | tojson }})">
+<div class="option" onclick="selectOption('{{ value }}')">
     <b>{{ key }}</b> {{ value }}
 </div>
 {% endfor %}
 
-</form>
-
 {% if result %}
-<div class="card">
-
-{% if result.correct %}
-<div style="color:green;"><b>Correct!</b></div>
-{% else %}
-<div style="color:red;"><b>Wrong</b></div>
-{% endif %}
-
-<p>{{ result.explanation }}</p>
-
-<div class="btn" onclick="next()">Next Question →</div>
-
+<div class="feedback {% if result.correct %}correct{% else %}wrong{% endif %}">
+    {{ result.explanation }}
 </div>
+
+<div class="btn" onclick="next()">Next →</div>
 {% endif %}
 
 </div>
@@ -118,13 +122,36 @@ body {
 </div>
 
 <script>
-function selectOption(val){
+let selectedLevels = "{{ levels }}".split(',').filter(Boolean);
+
+function toggleLevel(level) {
+    if (selectedLevels.includes(level)) {
+        selectedLevels = selectedLevels.filter(l => l !== level);
+    } else {
+        selectedLevels.push(level);
+    }
+    update();
+}
+
+function applyDifficulty(type) {
+    if (type === 'beginner') selectedLevels = ['A1','A2'];
+    if (type === 'intermediate') selectedLevels = ['B1','B2'];
+    if (type === 'advanced') selectedLevels = ['C1','C2'];
+    update();
+}
+
+function update() {
+    document.getElementById("levelsInput").value = selectedLevels.join(",");
+    window.location.href = "/play-v2?levels=" + selectedLevels.join(",");
+}
+
+function selectOption(val) {
     document.getElementById("selected").value = val;
     document.getElementById("form").submit();
 }
 
-function next(){
-    window.location.href = "/play-v2";
+function next() {
+    window.location.href = "/play-v2?levels=" + selectedLevels.join(",");
 }
 </script>
 
