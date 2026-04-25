@@ -14,36 +14,30 @@ app = FastAPI()
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Static
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-# Templates
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-# Sessions
-app.add_middleware(
-    SessionMiddleware,
-    secret_key="super-secret-key-change-later"
-)
+app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
 
 # -----------------------------
 # Startup
 # -----------------------------
 @app.on_event("startup")
-def startup_event():
+def startup():
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     if db.query(Question).count() == 0:
         create_question(db, {
-            "sentence": "Die Aufgabe war anspruchsvoll.",
-            "option_a": "schwierig",
-            "option_b": "kompliziert",
-            "option_c": "mühsam",
-            "option_d": "anspruchsvoll",
-            "correct_answer": "anspruchsvoll",
-            "explanation": "High demand meaning",
-            "level": "B2"
+            "sentence": "She ___ to the market every Saturday morning.",
+            "option_a": "go",
+            "option_b": "goes",
+            "option_c": "going",
+            "option_d": "gone",
+            "correct_answer": "goes",
+            "explanation": "With third-person singular subjects we add -s.",
+            "level": "A1"
         })
     db.close()
 
@@ -54,87 +48,91 @@ def get_random_question():
     db = SessionLocal()
     try:
         questions = db.query(Question).all()
-        return random.choice(questions) if questions else None
+        return random.choice(questions)
     finally:
         db.close()
 
-def get_options(question):
-    return [
-        ("A", str(question.option_a)),
-        ("B", str(question.option_b)),
-        ("C", str(question.option_c)),
-        ("D", str(question.option_d)),
-    ]
+def get_stats(session):
+    answered = session.get("answered", 0)
+    correct = session.get("correct", 0)
+    accuracy = int((correct / answered) * 100) if answered else 0
+    return answered, correct, accuracy
 
 # -----------------------------
 # Routes
 # -----------------------------
 @app.get("/")
 def home():
-    return RedirectResponse(url="/play-v2")
+    return RedirectResponse("/play-v2")
 
 
 @app.get("/play-v2", response_class=HTMLResponse)
-def play_v2(request: Request):
-    question = get_random_question()
+def play(request: Request):
+    q = get_random_question()
 
-    if not question:
-        return HTMLResponse("No questions available")
+    answered, correct, accuracy = get_stats(request.session)
 
-    return templates.TemplateResponse(
-        "game_v2.html",
-        {
-            "request": request,
-            "question": question,
-            "options": get_options(question),
-            "result": None,
-            "score": request.session.get("score", 0)
-        }
-    )
+    return templates.TemplateResponse("game_v2.html", {
+        "request": request,
+        "question": q,
+        "options": [
+            ("A", q.option_a),
+            ("B", q.option_b),
+            ("C", q.option_c),
+            ("D", q.option_d),
+        ],
+        "result": None,
+        "answered": answered,
+        "score": correct,
+        "accuracy": accuracy
+    })
 
 
 @app.post("/play-v2", response_class=HTMLResponse)
-def submit_v2(
-    request: Request,
-    question_id: int = Form(...),
-    selected_option: str = Form(...)
-):
+def submit(request: Request,
+           question_id: int = Form(...),
+           selected_option: str = Form(...)):
+
     db = SessionLocal()
     try:
-        question = db.query(Question).filter(Question.id == question_id).first()
+        q = db.query(Question).filter(Question.id == question_id).first()
     finally:
         db.close()
 
-    if not question:
-        return HTMLResponse("Question not found")
+    correct = selected_option == q.correct_answer
 
-    correct = str(selected_option) == str(question.correct_answer)
-
-    # session scoring
     session = request.session
-    session.setdefault("score", 0)
+    session["answered"] = session.get("answered", 0) + 1
 
     if correct:
-        session["score"] += 1
+        session["correct"] = session.get("correct", 0) + 1
 
-    result_text = "Correct ✅" if correct else f"Wrong ❌ (Correct: {question.correct_answer})"
+    answered, score, accuracy = get_stats(session)
 
-    # next question
-    next_question = get_random_question()
+    next_q = get_random_question()
 
-    return templates.TemplateResponse(
-        "game_v2.html",
-        {
-            "request": request,
-            "question": next_question,
-            "options": get_options(next_question),
-            "result": result_text,
-            "score": session["score"]
-        }
-    )
+    return templates.TemplateResponse("game_v2.html", {
+        "request": request,
+        "question": next_q,
+        "options": [
+            ("A", next_q.option_a),
+            ("B", next_q.option_b),
+            ("C", next_q.option_c),
+            ("D", next_q.option_d),
+        ],
+        "result": {
+            "correct": correct,
+            "explanation": q.explanation,
+            "correct_answer": q.correct_answer,
+            "selected": selected_option
+        },
+        "answered": answered,
+        "score": score,
+        "accuracy": accuracy
+    })
 
 
 @app.get("/reset")
 def reset(request: Request):
     request.session.clear()
-    return RedirectResponse(url="/play-v2")
+    return RedirectResponse("/play-v2")
