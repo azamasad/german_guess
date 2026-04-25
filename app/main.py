@@ -47,7 +47,7 @@ def startup_event():
     db.close()
 
 # -----------------------------
-# Routes (SAFE TEST VERSION)
+# Routes
 # -----------------------------
 @app.get("/")
 def home():
@@ -56,19 +56,29 @@ def home():
 
 @app.get("/play-v2", response_class=HTMLResponse)
 def play_v2(request: Request):
+    db = SessionLocal()
+
+    try:
+        question = db.query(Question).first()
+    finally:
+        db.close()
+
+    if not question:
+        return HTMLResponse("No questions available")
+
+    options = [
+        ("A", str(question.option_a)),
+        ("B", str(question.option_b)),
+        ("C", str(question.option_c)),
+        ("D", str(question.option_d)),
+    ]
+
     return templates.TemplateResponse(
         "game_v2.html",
         {
             "request": request,
-            "question": {
-                "sentence": "Test sentence"
-            },
-            "options": [
-                ("A", "eins"),
-                ("B", "zwei"),
-                ("C", "drei"),
-                ("D", "vier"),
-            ]
+            "question": question,
+            "options": options
         }
     )
 
