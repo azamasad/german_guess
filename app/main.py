@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from pathlib import Path
+import random
 
 from app.database import engine, SessionLocal, Base
 from app.models import Question
@@ -46,11 +47,17 @@ def startup_event():
         })
     db.close()
 
-
-
 # -----------------------------
 # Helpers
 # -----------------------------
+def get_random_question():
+    db = SessionLocal()
+    try:
+        questions = db.query(Question).all()
+        return random.choice(questions) if questions else None
+    finally:
+        db.close()
+
 def get_options(question):
     return [
         ("A", str(question.option_a)),
@@ -69,11 +76,7 @@ def home():
 
 @app.get("/play-v2", response_class=HTMLResponse)
 def play_v2(request: Request):
-    db = SessionLocal()
-    try:
-        question = db.query(Question).first()
-    finally:
-        db.close()
+    question = get_random_question()
 
     if not question:
         return HTMLResponse("No questions available")
@@ -84,7 +87,8 @@ def play_v2(request: Request):
             "request": request,
             "question": question,
             "options": get_options(question),
-            "result": None
+            "result": None,
+            "score": request.session.get("score", 0)
         }
     )
 
@@ -106,15 +110,26 @@ def submit_v2(
 
     correct = str(selected_option) == str(question.correct_answer)
 
+    # session scoring
+    session = request.session
+    session.setdefault("score", 0)
+
+    if correct:
+        session["score"] += 1
+
     result_text = "Correct ✅" if correct else f"Wrong ❌ (Correct: {question.correct_answer})"
+
+    # next question
+    next_question = get_random_question()
 
     return templates.TemplateResponse(
         "game_v2.html",
         {
             "request": request,
-            "question": question,
-            "options": get_options(question),
-            "result": result_text
+            "question": next_question,
+            "options": get_options(next_question),
+            "result": result_text,
+            "score": session["score"]
         }
     )
 
@@ -123,8 +138,3 @@ def submit_v2(
 def reset(request: Request):
     request.session.clear()
     return RedirectResponse(url="/play-v2")
-
-from sqlalchemy import text
-with engine.connect() as conn:
-    result = conn.execute(text("SELECT version();"))
-    print("DB VERSION:", result.fetchone())
