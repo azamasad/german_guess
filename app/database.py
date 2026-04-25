@@ -2,22 +2,12 @@ import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Correct: read DATABASE_URL from environment
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("postgresql+psycopg2://germanguess_staging_db_user:P6KokiJM9dWaU2sOYWmc2dKowN7xX0QN@dpg-d7l2a3nlk1mc73bhjnm0-a/germanguess_staging_db")
 
-# Fallback to SQLite (local only)
 if not DATABASE_URL:
-    DATABASE_URL = "sqlite:///./german_guess.db"
+    raise RuntimeError("DATABASE_URL is not set")
 
-# SQLite special config
-connect_args = {}
-if DATABASE_URL.startswith("sqlite"):
-    connect_args = {"check_same_thread": False}
-
-engine = create_engine(
-    DATABASE_URL,
-    connect_args=connect_args
-)
+engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -25,4 +15,4 @@ SessionLocal = sessionmaker(
     bind=engine
 )
 
-Base = declarative_base()
+Base = declarative_base()   
