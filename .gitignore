@@ -31,3 +31,5 @@ env/
 
 # mac junk
 .DS_Store
+.env.local
+.venv/
