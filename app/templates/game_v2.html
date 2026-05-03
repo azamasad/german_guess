@@ -1,159 +1,249 @@
 <!DOCTYPE html>
-<html>
+<html class="dark" lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<style>
-body {
-    font-family: system-ui;
-    background: #f5f7fa;
-    margin: 0;
-    padding: 16px;
-}
-
-.container {
-    max-width: 520px;
-    margin: auto;
-}
-
-.pill {
-    display: inline-block;
-    padding: 8px 14px;
-    margin: 4px;
-    border-radius: 20px;
-    background: #ddd;
-    cursor: pointer;
-}
-
-.pill.active {
-    background: green;
-    color: white;
-}
-
-.card {
-    background: white;
-    padding: 20px;
-    border-radius: 16px;
-    margin-top: 16px;
-}
-
-.option {
-    border: 2px solid #ddd;
-    padding: 14px;
-    border-radius: 12px;
-    margin-top: 10px;
-    cursor: pointer;
-}
-
-.option:hover {
-    background: #f0f0f0;
-}
-
-.feedback {
-    margin-top: 16px;
-    padding: 12px;
-    border-radius: 10px;
-}
-
-.correct { background: #e6f6ee; color: green; }
-.wrong { background: #fdecec; color: red; }
-
-.btn {
-    margin-top: 16px;
-    padding: 14px;
-    background: #24335c;
-    color: white;
-    text-align: center;
-    border-radius: 10px;
-    cursor: pointer;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-<h2>LinguaQuiz</h2>
-
-<!-- CEFR -->
-<div>
-    <div class="pill" onclick="toggleLevel('A1')">A1</div>
-    <div class="pill" onclick="toggleLevel('A2')">A2</div>
-    <div class="pill" onclick="toggleLevel('B1')">B1</div>
-    <div class="pill" onclick="toggleLevel('B2')">B2</div>
-    <div class="pill" onclick="toggleLevel('C1')">C1</div>
-    <div class="pill" onclick="toggleLevel('C2')">C2</div>
-</div>
-
-<!-- Difficulty -->
-<div>
-    <div class="pill" onclick="applyDifficulty('beginner')">Beginner</div>
-    <div class="pill" onclick="applyDifficulty('intermediate')">Intermediate</div>
-    <div class="pill" onclick="applyDifficulty('advanced')">Advanced</div>
-</div>
-
-<div class="card">
-
-<h3>{{ question.sentence }}</h3>
-
-<form method="post" action="/play-v2" id="form">
-    <input type="hidden" name="question_id" value="{{ question.id }}">
-    <input type="hidden" name="selected_option" id="selected">
-    <input type="hidden" name="levels" id="levelsInput" value="{{ levels }}">
-</form>
-
-{% for key, value in options %}
-<div class="option" onclick="selectOption('{{ value }}')">
-    <b>{{ key }}</b> {{ value }}
-</div>
-{% endfor %}
-
-{% if result %}
-<div class="feedback {% if result.correct %}correct{% else %}wrong{% endif %}">
-    {{ result.explanation }}
-</div>
-
-<div class="btn" onclick="next()">Next →</div>
-{% endif %}
-
-</div>
-
-</div>
-
-<script>
-let selectedLevels = "{{ levels }}".split(',').filter(Boolean);
-
-function toggleLevel(level) {
-    if (selectedLevels.includes(level)) {
-        selectedLevels = selectedLevels.filter(l => l !== level);
-    } else {
-        selectedLevels.push(level);
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>GermanGuess - Learn</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "error": "#ffb4ab",
+            "on-secondary-container": "#95b7ea",
+            "surface-bright": "#3a3939",
+            "on-error": "#690005",
+            "inverse-on-surface": "#313030",
+            "surface-container-lowest": "#0e0e0e",
+            "surface-tint": "#c6c6c6",
+            "surface": "#141313",
+            "surface-container": "#201f1f",
+            "on-secondary": "#02315d",
+            "secondary-container": "#234875",
+            "on-surface": "#e5e2e1",
+            "on-surface-variant": "#c4c7c8",
+            "outline-variant": "#444748",
+            "secondary": "#a6c8fd",
+            "inverse-primary": "#5d5f5f",
+            "inverse-surface": "#e5e2e1",
+            "on-background": "#e5e2e1",
+            "surface-dim": "#141313",
+            "on-primary": "#2f3131",
+            "surface-variant": "#353434",
+            "primary": "#fdfdfc",
+            "surface-container-high": "#2a2a2a",
+            "background": "#141313",
+            "outline": "#8e9192",
+            "on-error-container": "#ffdad6",
+            "error-container": "#93000a"
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "sm": "12px",
+            "container-margin": "20px",
+            "lg": "40px",
+            "md": "24px",
+            "base": "8px",
+            "xl": "64px",
+            "gutter": "16px",
+            "xs": "4px"
+          },
+          fontFamily: {
+            "headline-md": ["Inter"],
+            "label-caps": ["Inter"],
+            "body-md": ["Inter"],
+            "body-sm": ["Inter"],
+            "title-sm": ["Inter"]
+          },
+          fontSize: {
+            "headline-md": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+            "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "title-sm": ["20px", { "lineHeight": "28px", "fontWeight": "500" }]
+          }
+        }
+      }
     }
-    update();
-}
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    }
+  </style>
+  <style>
+    body { min-height: max(884px, 100dvh); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md pb-16 pt-20">
+  {% set answered = (stats.answered if stats else 0) | int %}
+  {% set total = (stats.total if stats and stats.total is not none else 0) | int %}
+  {% set current_level_key = ui_level if ui_level else 'intermediate' %}
 
-function applyDifficulty(type) {
-    if (type === 'beginner') selectedLevels = ['A1','A2'];
-    if (type === 'intermediate') selectedLevels = ['B1','B2'];
-    if (type === 'advanced') selectedLevels = ['C1','C2'];
-    update();
-}
+  <header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-5 h-16 bg-[#121212] border-b border-[#2A2A2A]">
+    <button type="button" class="flex items-center justify-center p-2 rounded-full hover:bg-[#1E1E1E] transition-colors active:scale-95 duration-150">
+      <span class="material-symbols-outlined text-[#E0E0E0]">school</span>
+    </button>
+    <div class="flex flex-col items-center">
+      <h1 class="text-lg font-bold text-[#E0E0E0] font-['Inter'] tracking-tight">GermanGuess</h1>
+      <span class="font-label-caps text-label-caps text-outline">{{ answered }} / {{ total }}</span>
+    </div>
+    <a href="/reset" class="flex items-center justify-center p-2 rounded-full hover:bg-[#1E1E1E] transition-colors active:scale-95 duration-150">
+      <span class="material-symbols-outlined text-[#E0E0E0]">settings</span>
+    </a>
+  </header>
 
-function update() {
-    document.getElementById("levelsInput").value = selectedLevels.join(",");
-    window.location.href = "/play-v2?levels=" + selectedLevels.join(",");
-}
+  <main class="px-container-margin max-w-lg mx-auto flex flex-col gap-2 pt-[56px] {% if result %}pb-[220px]{% endif %}">
+    <section class="flex items-center justify-between gap-base mt-2">
+      <div class="grid grid-cols-3 gap-2 bg-surface-container-high p-xs rounded-full border border-surface-container-high shadow-sm flex-1 min-w-0">
+        <a href="/play-v2?levels=beginner" class="px-sm py-base rounded-full font-label-caps text-label-caps text-center whitespace-nowrap transition-all {% if current_level_key == 'beginner' %}bg-secondary text-on-secondary{% else %}text-on-surface-variant hover:text-on-surface{% endif %}">Beginner</a>
+        <a href="/play-v2?levels=intermediate" class="px-sm py-base rounded-full font-label-caps text-label-caps text-center whitespace-nowrap transition-all {% if current_level_key == 'intermediate' %}bg-secondary text-on-secondary{% else %}text-on-surface-variant hover:text-on-surface{% endif %}">Intermediate</a>
+        <a href="/play-v2?levels=advanced" class="px-sm py-base rounded-full font-label-caps text-label-caps text-center whitespace-nowrap transition-all {% if current_level_key == 'advanced' %}bg-secondary text-on-secondary{% else %}text-on-surface-variant hover:text-on-surface{% endif %}">Advanced</a>
+      </div>
+      <button type="button" class="flex items-center gap-xs px-sm py-base bg-surface-container-high rounded-full border border-surface-container-high hover:border-outline-variant transition-colors group">
+        <span class="material-symbols-outlined text-on-surface-variant group-hover:text-secondary text-[18px]">tune</span>
+        <span class="font-label-caps text-label-caps text-on-surface-variant group-hover:text-on-surface">Mode</span>
+      </button>
+    </section>
 
-function selectOption(val) {
-    document.getElementById("selected").value = val;
-    document.getElementById("form").submit();
-}
+    {% if error %}
+    <section>
+      <div class="rounded-lg border border-[#7f1d1d] bg-[#2a1a1a] text-[#f87171] px-4 py-3">{{ error }}</div>
+    </section>
+    {% endif %}
 
-function next() {
-    window.location.href = "/play-v2?levels=" + selectedLevels.join(",");
-}
-</script>
+    {% if question %}
+      {% set raw_sentence = question.sentence %}
+      {% set sentence_markup = raw_sentence.replace('____', '_____').replace('___', '_____').replace('[blank]', '_____') %}
 
+      <section class="bg-[#1E1E1E] rounded-[16px] border border-[#2A2A2A] overflow-hidden shadow-lg mt-2">
+        <div class="w-full h-48 relative">
+          <img alt="Learning scene" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyanH0rvVrQZ95wwY5T_JXoiCtaESc8K1KvxbBsjg5nrUUG2_DqGHTS6FgbA3ZxlK_a9UHrciDuSQ5d0FmRNfyDY8xPq2JWPbPS-slmtF9bzJQ4WlPEvCqgxsLHLInhdjMQa14hmWiRUhvK5G_0hHdwSkOVAzYMwkPp1ERXwOaeXQ9J_8BDGrWsyHniWVOHY7Mo8xMzqXMLrGXGIHoSq3KYj89tAsDJu6vEyZVRqQTI688yWP_bLikALBdshNAvtdAjichEvvMSMEj"/>
+          <div class="absolute inset-0 bg-gradient-to-t from-[#1E1E1E] to-transparent opacity-80"></div>
+        </div>
+        <div class="p-3 text-center">
+          <p class="font-title-sm text-title-sm text-on-surface-variant mb-xs">Fill in the blank</p>
+          <h2 class="font-headline-md text-headline-md text-primary tracking-tight">
+            {{ sentence_markup }}
+          </h2>
+        </div>
+      </section>
+
+      <form method="post" action="/play-v2" class="flex flex-col gap-sm mt-2">
+        <input type="hidden" name="question_id" value="{{ question.question_id if question.question_id is defined else question.id }}"/>
+        <input type="hidden" name="levels" value="{{ levels or 'B1,B2' }}"/>
+        <input type="hidden" name="debug" value="1"/>
+
+        {% for item in question.options %}
+          {% if item is mapping %}
+            {% set option_value = (item.value if item.value is defined else (item.text if item.text is defined else '')) %}
+            {% set option_text = (item.text if item.text is defined else option_value) %}
+          {% else %}
+            {% set option_value = item %}
+            {% set option_text = item %}
+          {% endif %}
+          {% set option_value = option_value|string %}
+          {% set option_text = option_text|string %}
+          {% if option_value|trim %}
+            {% set is_correct_opt = result and (option_value == result.correct_answer) %}
+            {% set is_wrong_selected = result and (not result.correct) and (option_value == result.selected_answer) %}
+            {% set is_muted = result and (not is_correct_opt) and (not is_wrong_selected) %}
+            <button type="submit" name="selected_option" value="{{ option_value }}" class="w-full bg-[#1E1E1E] rounded-[16px] py-3 px-3 text-center transition-all duration-200 active:scale-[0.98] group relative overflow-hidden border {% if is_correct_opt %}border-[#2e6d42]{% elif is_wrong_selected %}border-[#f2a8a1]{% else %}border-[#2A2A2A] hover:border-[#6C8EBF]{% endif %} {% if is_muted %}opacity-60{% endif %}">
+              <div class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <span class="font-title-sm text-base block relative z-10 {% if is_correct_opt %}text-[#86efac]{% elif is_wrong_selected %}text-[#f2a8a1]{% elif is_muted %}text-on-surface-variant{% else %}text-on-surface group-hover:text-secondary transition-colors{% endif %}">{{ option_text }}</span>
+              {% if is_correct_opt %}
+              <span class="material-symbols-outlined text-[#86efac] absolute right-4 top-1/2 -translate-y-1/2 z-10" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+              {% elif is_wrong_selected %}
+              <span class="material-symbols-outlined text-[#f2a8a1] absolute right-4 top-1/2 -translate-y-1/2 z-10" style="font-variation-settings: 'FILL' 1;">cancel</span>
+              {% endif %}
+            </button>
+          {% endif %}
+        {% endfor %}
+      </form>
+    {% endif %}
+  </main>
+
+  {% if result %}
+  <section class="fixed bottom-0 left-0 w-full z-40 bg-surface-container-high border-t border-outline-variant p-container-margin pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.6)]">
+    <div class="max-w-lg mx-auto flex flex-col gap-sm">
+      <div class="flex items-center gap-2 {% if result.correct %}text-[#86efac]{% else %}text-error{% endif %}">
+        <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">{% if result.correct %}check_circle{% else %}cancel{% endif %}</span>
+        <h3 class="font-title-sm text-title-sm font-semibold">{% if result.correct %}Correct{% else %}Incorrect{% endif %}</h3>
+      </div>
+      <p class="font-body-md text-body-md text-on-surface">{{ result.explanation }}</p>
+
+      <form id="nextForm" method="get" action="/play-v2">
+        <input type="hidden" name="levels" value="{{ levels or 'B1,B2' }}"/>
+        <button id="nextBtn" type="submit" form="nextForm" class="mt-sm w-full h-[56px] rounded-lg bg-primary text-on-primary font-title-sm text-title-sm flex items-center justify-center relative overflow-hidden active:scale-[0.98] transition-transform">
+          <span>Next Question</span>
+          <span id="nextCountdown" class="absolute right-5 font-body-sm text-body-sm text-on-primary/60 font-semibold tracking-wider"></span>
+        </button>
+      </form>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if not result %}
+  <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-11 px-2 pb-safe bg-[#121212] border-t border-[#2A2A2A] md:hidden">
+    <button type="button" class="flex flex-col items-center justify-center text-[#E0E0E0] active:opacity-80 transition-all group">
+      <div class="rounded-full p-[2px] bg-secondary/10">
+        <span class="material-symbols-outlined text-secondary text-[18px]" style="font-variation-settings: 'FILL' 1;">quiz</span>
+      </div>
+      <span class="font-['Inter'] text-[9px] uppercase tracking-widest font-bold text-secondary">Learn</span>
+    </button>
+    <button type="button" class="flex flex-col items-center justify-center text-[#E0E0E0]/40 hover:text-[#6C8EBF] active:opacity-80 transition-all group">
+      <div class="rounded-full p-[2px] group-hover:bg-white/5 transition-colors">
+        <span class="material-symbols-outlined text-[#E0E0E0]/40 group-hover:text-[#6C8EBF] text-[18px]">history</span>
+      </div>
+      <span class="font-['Inter'] text-[9px] uppercase tracking-widest font-bold">Review</span>
+    </button>
+    <button type="button" class="flex flex-col items-center justify-center text-[#E0E0E0]/40 hover:text-[#6C8EBF] active:opacity-80 transition-all group">
+      <div class="rounded-full p-[2px] group-hover:bg-white/5 transition-colors">
+        <span class="material-symbols-outlined text-[#E0E0E0]/40 group-hover:text-[#6C8EBF] text-[18px]">leaderboard</span>
+      </div>
+      <span class="font-['Inter'] text-[9px] uppercase tracking-widest font-bold">Stats</span>
+    </button>
+    <button type="button" class="flex flex-col items-center justify-center text-[#E0E0E0]/40 hover:text-[#6C8EBF] active:opacity-80 transition-all group">
+      <div class="rounded-full p-[2px] group-hover:bg-white/5 transition-colors">
+        <span class="material-symbols-outlined text-[#E0E0E0]/40 group-hover:text-[#6C8EBF] text-[18px]">person</span>
+      </div>
+      <span class="font-['Inter'] text-[9px] uppercase tracking-widest font-bold">Profile</span>
+    </button>
+  </nav>
+  {% endif %}
+
+  <script>
+    const nextForm = document.getElementById('nextForm');
+    const btn = document.querySelector('[form="nextForm"]');
+    const countdownEl = document.getElementById('nextCountdown');
+
+    if (nextForm && btn) {
+      let seconds = 10;
+      if (countdownEl) {
+        countdownEl.textContent = '(' + seconds + 's)';
+      }
+      const timer = setInterval(() => {
+        seconds--;
+        if (countdownEl) {
+          countdownEl.textContent = '(' + Math.max(0, seconds) + 's)';
+        }
+        if (seconds <= 0) {
+          clearInterval(timer);
+          nextForm.submit();
+        }
+      }, 1000);
+    }
+  </script>
 </body>
 </html>

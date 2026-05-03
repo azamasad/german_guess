@@ -1,151 +1,167 @@
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from starlette.middleware.sessions import SessionMiddleware
-from pathlib import Path
-import random
+from __future__ import annotations
 
-from app.database import engine, SessionLocal, Base
-from app.models import Question
-from app.crud import create_question
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, Form, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env.local")
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+ENV = os.getenv("ENV")
+
+from app.database import Base, SessionLocal, engine
+from app.services import quiz_service
+
 
 app = FastAPI()
-
 BASE_DIR = Path(__file__).resolve().parent
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET", "dev-secret-change-me"),
+)
 
-# -----------------------------
-# Startup
-# -----------------------------
+
 @app.on_event("startup")
-def startup():
+def startup() -> None:
+    print("ENV:", ENV)
+    print("DB URL:", DATABASE_URL)
     Base.metadata.create_all(bind=engine)
 
-    db = SessionLocal()
-    if db.query(Question).count() == 0:
-        create_question(db, {
-            "sentence": "She ___ to the market every Saturday morning.",
-            "option_a": "go",
-            "option_b": "goes",
-            "option_c": "going",
-            "option_d": "gone",
-            "correct_answer": "goes",
-            "explanation": "With third-person singular subjects we add -s.",
-            "level": "A1"
-        })
-    db.close()
 
-# -----------------------------
-# Helpers
-# -----------------------------
-def get_random_question(levels=None):
+def get_db():
     db = SessionLocal()
     try:
-        query = db.query(Question)
-
-        if levels:
-            level_list = levels.split(",")
-            query = query.filter(Question.level.in_(level_list))
-
-        questions = query.all()
-        return random.choice(questions) if questions else None
+        yield db
     finally:
         db.close()
 
+def normalize_levels(levels: str | None) -> str:
+    if levels == "beginner":
+        return "A1,A2"
+    if levels == "intermediate":
+        return "B1,B2"
+    if levels == "advanced":
+        return "C1,C2"
+    if not levels:
+        return "B1,B2"
+    return levels
 
-def get_stats(session):
-    answered = session.get("answered", 0)
-    correct = session.get("correct", 0)
-    accuracy = int((correct / answered) * 100) if answered else 0
-    return answered, correct, accuracy
+def infer_ui_level(levels: str | None) -> str:
+    normalized = normalize_levels(levels)
+    if normalized == "A1,A2":
+        return "beginner"
+    if normalized == "C1,C2":
+        return "advanced"
+    return "intermediate"
+
+def get_question_with_fallback(db: Session, session: dict, levels: str):
+    question, stats, error = quiz_service.get_or_create_question(db, session, levels)
+    if question is None and error and "No questions found for selected CEFR levels." in error:
+        question, stats, error = quiz_service.get_or_create_question(db, session, None)
+    return question, stats, error
 
 
-# -----------------------------
-# Routes
-# -----------------------------
 @app.get("/")
-def home():
+def home() -> RedirectResponse:
     return RedirectResponse("/play-v2")
 
 
 @app.get("/play-v2", response_class=HTMLResponse)
-def play(request: Request, levels: str = None):
-
-    q = get_random_question(levels)
-
-    if not q:
-        return HTMLResponse("No questions available for selected level")
-
-    answered, score, accuracy = get_stats(request.session)
-
-    return templates.TemplateResponse("game_v2.html", {
-        "request": request,
-        "question": q,
-        "options": [
-            ("A", q.option_a),
-            ("B", q.option_b),
-            ("C", q.option_c),
-            ("D", q.option_d),
-        ],
-        "result": None,
-        "answered": answered,
-        "score": score,
-        "accuracy": accuracy,
-        "levels": levels or ""
-    })
+def play(request: Request, levels: str | None = None, db: Session = Depends(get_db)):
+    levels = normalize_levels(levels)
+    ui_level = infer_ui_level(levels)
+    question, stats, error = get_question_with_fallback(db, request.session, levels)
+    return templates.TemplateResponse(
+        "game_v2.html",
+        {
+            "request": request,
+            "question": question,
+            "stats": stats,
+            "levels": levels,
+            "ui_level": ui_level,
+            "result": None,
+            "error": error,
+        },
+    )
 
 
-@app.post("/play-v2", response_class=HTMLResponse)
-def submit(
+@app.get("/api/quiz")
+def get_quiz(request: Request, levels: str | None = None, db: Session = Depends(get_db)):
+    levels = normalize_levels(levels)
+    question, stats, error = quiz_service.get_or_create_question(db, request.session, levels)
+    if error:
+        return JSONResponse({"ok": False, "error": error, "stats": stats.__dict__}, status_code=404)
+    return {
+        "ok": True,
+        "question": question.__dict__,
+        "stats": stats.__dict__,
+    }
+
+
+@app.post("/api/quiz/answer")
+def answer_quiz(
     request: Request,
     question_id: int = Form(...),
     selected_option: str = Form(...),
-    levels: str = Form(None)
+    levels: str | None = Form(None),
+    db: Session = Depends(get_db),
 ):
-    db = SessionLocal()
-    try:
-        q = db.query(Question).filter(Question.id == question_id).first()
-    finally:
-        db.close()
+    levels = normalize_levels(levels)
+    payload, _stats, _ = quiz_service.submit_answer(db, request.session, question_id, selected_option, levels)
+    if payload is None:
+        return JSONResponse({"ok": False, "error": "Invalid request."}, status_code=400)
 
-    correct = selected_option == q.correct_answer
+    return {
+        "ok": True,
+        "feedback": payload["feedback"],
+        "next_question": payload["next_question"].__dict__ if payload["next_question"] else None,
+        "stats": payload["stats"].__dict__,
+        "error": payload["error"],
+    }
 
-    session = request.session
-    session["answered"] = session.get("answered", 0) + 1
 
-    if correct:
-        session["correct"] = session.get("correct", 0) + 1
-
-    answered, score, accuracy = get_stats(session)
-
-    next_q = get_random_question(levels)
-
-    return templates.TemplateResponse("game_v2.html", {
-        "request": request,
-        "question": next_q,
-        "options": [
-            ("A", next_q.option_a),
-            ("B", next_q.option_b),
-            ("C", next_q.option_c),
-            ("D", next_q.option_d),
-        ],
-        "result": {
-            "correct": correct,
-            "explanation": q.explanation
+@app.post("/play-v2", response_class=HTMLResponse)
+def submit_legacy(
+    request: Request,
+    question_id: int = Form(...),
+    selected_option: str = Form(...),
+    levels: str | None = Form(None),
+    db: Session = Depends(get_db),
+):
+    levels = normalize_levels(levels)
+    ui_level = infer_ui_level(levels)
+    payload, _stats, _ = quiz_service.submit_answer(db, request.session, question_id, selected_option, levels)
+    if payload and payload.get("error") and "No questions found for selected CEFR levels." in payload["error"]:
+        next_question, stats, error = quiz_service.get_or_create_question(db, request.session, None)
+        payload["next_question"] = next_question
+        payload["stats"] = stats
+        payload["error"] = error
+    return templates.TemplateResponse(
+        "game_v2.html",
+        {
+            "request": request,
+            "question": payload["answered_question"],
+            "stats": payload["stats"],
+            "levels": levels,
+            "ui_level": ui_level,
+            "result": payload["feedback"],
+            "error": payload["error"],
         },
-        "answered": answered,
-        "score": score,
-        "accuracy": accuracy,
-        "levels": levels or ""
-    })
+    )
 
 
 @app.get("/reset")
-def reset(request: Request):
-    request.session.clear()
+def reset(request: Request) -> RedirectResponse:
+    quiz_service.reset_progress(request.session)
     return RedirectResponse("/play-v2")

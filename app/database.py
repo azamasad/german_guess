@@ -16,5 +16,3 @@ SessionLocal = sessionmaker(
 )
 
 Base = declarative_base()
-
-print("DB URL:", engine.url)
