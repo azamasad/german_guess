@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import logging
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Form, Request
@@ -11,32 +12,45 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
+load_dotenv()
 load_dotenv(Path(__file__).resolve().parent.parent / ".env.local")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 ENV = os.getenv("ENV")
+SESSION_SECRET = os.getenv("SESSION_SECRET")
 
 from app.database import Base, SessionLocal, engine
 from app.services import quiz_service
 
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).resolve().parent
 
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+if (ENV or "").lower() in {"production", "prod"} and not SESSION_SECRET:
+    raise RuntimeError("SESSION_SECRET is required in production")
+
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("SESSION_SECRET", "dev-secret-change-me"),
+    secret_key=SESSION_SECRET or "dev-secret-change-me",
 )
 
 
 @app.on_event("startup")
 def startup() -> None:
-    print("ENV:", ENV)
-    print("DB URL:", DATABASE_URL)
+    logger.info("Application startup")
     Base.metadata.create_all(bind=engine)
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    return response
 
 
 def get_db():

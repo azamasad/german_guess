@@ -1,9 +1,6 @@
-<!DOCTYPE html>
-<html class="dark" lang="en">
-<head>
-  <meta charset="utf-8"/>
-  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>GermanGuess - Learn</title>
+{% extends "base.html" %}
+
+{% block head %}
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -85,8 +82,10 @@
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
   </style>
-</head>
-<body class="bg-background text-on-background font-body-md text-body-md pb-16 pt-20">
+{% endblock %}
+
+{% block content %}
+<div class="dark bg-background text-on-background font-body-md text-body-md pb-16 pt-20">
   {% set answered = (stats.answered if stats else 0) | int %}
   {% set total = (stats.total if stats and stats.total is not none else 0) | int %}
   {% set current_level_key = ui_level if ui_level else 'intermediate' %}
@@ -140,7 +139,7 @@
         </div>
       </section>
 
-      <form method="post" action="/play-v2" class="flex flex-col gap-sm mt-2">
+      <form method="post" action="/play-v2" class="flex flex-col gap-sm mt-2" onsubmit="trackAnswerEvent('{{ question.question_id if question.question_id is defined else question.id }}', '{{ current_level_key if current_level_key else 'unknown' }}', {{ stats.answered if stats else 0 }})">
         <input type="hidden" name="question_id" value="{{ question.question_id if question.question_id is defined else question.id }}"/>
         <input type="hidden" name="levels" value="{{ levels or 'B1,B2' }}"/>
         <input type="hidden" name="debug" value="1"/>
@@ -175,6 +174,18 @@
   </main>
 
   {% if result %}
+  <script>
+    if (typeof gtag !== "undefined" && !window.__resultTracked) {
+      window.__resultTracked = true;
+
+      gtag('event', 'answer_result', {
+        correct: "{{ 'correct' if result.correct else 'wrong' }}",
+        question_index: {{ stats.answered if stats else 0 }},
+        level: '{{ current_level_key if current_level_key else "unknown" }}',
+        mode: "guess_the_blank"
+      });
+    }
+  </script>
   <section class="fixed bottom-0 left-0 w-full z-40 bg-surface-container-high border-t border-outline-variant p-container-margin pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.6)]">
     <div class="max-w-lg mx-auto flex flex-col gap-sm">
       <div class="flex items-center gap-2 {% if result.correct %}text-[#86efac]{% else %}text-error{% endif %}">
@@ -222,6 +233,40 @@
     </button>
   </nav>
   {% endif %}
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+  <script>
+    function trackAnswerEvent(qid, level, step) {
+      if (typeof gtag === "undefined") return;
+
+      if (!qid || !level) {
+        gtag('event', 'tracking_error', {
+          type: 'missing_data',
+          question_id: qid || 'null',
+          level: level || 'null',
+          mode: "guess_the_blank"
+        });
+        return;
+      }
+
+      if (step < 0 || step > 1000) {
+        gtag('event', 'tracking_error', {
+          type: 'invalid_step',
+          step: step,
+          mode: "guess_the_blank"
+        });
+      }
+
+      gtag('event', 'answer_submit', {
+        question_id: qid,
+        level: level,
+        question_index: step,
+        mode: "guess_the_blank"
+      });
+    }
+  </script>
 
   <script>
     const nextForm = document.getElementById('nextForm');
@@ -245,5 +290,4 @@
       }, 1000);
     }
   </script>
-</body>
-</html>
+{% endblock %}

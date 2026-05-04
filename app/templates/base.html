@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GermanGuess - Learn</title>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XQL8SX243Y"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XQL8SX243Y');
+  </script>
+
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% block content %}{% endblock %}
+
+  <script>
+    let sessionTracked = false;
+
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden" && !sessionTracked) {
+        sessionTracked = true;
+
+        if (typeof gtag !== "undefined") {
+          gtag('event', 'session_end', {
+            page: window.location.pathname,
+            mode: "guess_the_blank"
+          });
+        }
+      }
+    });
+  </script>
+
+  {% block body_scripts %}{% endblock %}
+</body>
+</html>
